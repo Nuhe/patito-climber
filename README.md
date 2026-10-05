@@ -1,6 +1,6 @@
 # Patito Cumbre
 
-Juego original de escalada inspirado en los arcades clásicos. Se puede alojar como sitio estático en GitHub Pages. El ranking global usa Supabase.
+Juego original de escalada inspirado en los arcades clásicos, con estética de 8 bits, búhos de plataforma y aves rapaces que cruzan la montaña. Se aloja como sitio estático en GitHub Pages. El ranking global usa Supabase.
 
 ## Jugar localmente
 
@@ -12,7 +12,7 @@ python3 -m http.server 8000
 
 Abrí `http://localhost:8000`. El navegador necesita un servidor local porque `game.js` usa módulos JavaScript.
 
-**Controles:** flechas izquierda/derecha o A/D para moverse; espacio, flecha arriba o W para saltar; X o J para el aletazo. En pantallas táctiles aparecen botones. Al llegar a la cima o perder todas las vidas, se puede guardar una marca con 1 a 3 letras.
+**Controles:** flechas izquierda/derecha o A/D para moverse; espacio, flecha arriba o W para saltar; X o J para el aletazo animado. En pantallas táctiles aparecen botones. Al llegar a la cima o perder todas las vidas, se puede guardar una marca con 1 a 3 letras.
 
 ## Activar el ranking global
 
