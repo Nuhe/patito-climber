@@ -14,7 +14,7 @@ Abrí `http://localhost:8000`. El navegador necesita un servidor local porque `g
 
 **Controles:** flechas izquierda/derecha o A/D para moverse; espacio, flecha arriba o W para saltar; X o J para el aletazo animado. En pantallas táctiles aparecen botones.
 
-El cronómetro empieza al iniciar la partida. Solo las partidas completadas se guardan, ordenadas de menor a mayor tiempo. Los bloques con grietas se rompen poco después de pisarlos. Caer por debajo de la última plataforma alcanzada o tocar un enemigo termina el intento. Las estrellas son coleccionables, pero no alteran el tiempo.
+El cronómetro empieza al iniciar la partida. Solo las partidas completadas se guardan, ordenadas de menor a mayor tiempo. Los bloques con grietas se rompen poco después de pisarlos. La cámara solo avanza hacia arriba: una caída termina el intento cuando el patito toca el borde inferior de la pantalla. Tocar un enemigo también termina el intento. Las estrellas son coleccionables, pero no alteran el tiempo.
 
 ## Activar el ranking global
 
