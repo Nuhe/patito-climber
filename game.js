@@ -33,7 +33,6 @@ let effects = [];
 let camera = WORLD_BOTTOM - 470;
 let starsCollected = 0;
 let bestY = WORLD_BOTTOM;
-let highestLandingY = WORLD_BOTTOM;
 let elapsed = 0;
 let runStartedAt = 0;
 let lastTime = 0;
@@ -117,7 +116,6 @@ function reset() {
   camera = WORLD_BOTTOM - 470;
   starsCollected = 0;
   bestY = WORLD_BOTTOM;
-  highestLandingY = WORLD_BOTTOM;
   elapsed = 0;
   pendingTime = null;
   updateHud();
@@ -132,7 +130,7 @@ function updateHud() {
 function showTitle() {
   mode = 'title';
   overlay.classList.remove('hidden');
-  panel.innerHTML = `<div class="overlay-icon duck-badge"><span class="duck-head"></span><span class="duck-beak"></span><span class="duck-eye"></span></div><h2>¡A la cima!</h2><p>Llegá lo más rápido posible. El hielo agrietado se rompe y, si caés o te golpean, termina el intento.</p><button type="button" class="primary-button" id="start-button">JUGAR AHORA</button>`;
+  panel.innerHTML = `<div class="overlay-icon duck-badge"><span class="duck-head"></span><span class="duck-beak"></span><span class="duck-eye"></span></div><h2>¡A la cima!</h2><p>Llegá lo más rápido posible. El hielo agrietado se rompe; perderás si tocás el fondo de la pantalla o un enemigo.</p><button type="button" class="primary-button" id="start-button">JUGAR AHORA</button>`;
   document.querySelector('#start-button').addEventListener('click', start);
 }
 
@@ -145,7 +143,7 @@ function start() {
   beep(600, 0.15);
 }
 
-function finish(won, reason = 'Caíste de la plataforma.') {
+function finish(won, reason = 'Tocaste el borde inferior de la pantalla.') {
   if (mode !== 'playing') return;
   mode = 'finished';
   if (won) beep(900, 0.25, 'triangle');
@@ -266,17 +264,14 @@ function update(dt, timestamp) {
     for (const p of platforms) {
       if (p.broken) continue;
       if (previousBottom <= p.y + 9 && player.y + player.h >= p.y && player.x + player.w > p.x + 5 && player.x < p.x + p.w - 5) {
-        if (p.y > highestLandingY + 1) { finish(false); return; }
         player.y = p.y - player.h;
         player.vy = 0;
         player.grounded = true;
-        highestLandingY = Math.min(highestLandingY, p.y);
         if (p.fragile && p.crackTime === null) p.crackTime = 0.72;
         break;
       }
     }
   }
-  if (player.vy > 0 && player.y + player.h > highestLandingY + 24) { finish(false); return; }
   const centerX = player.x + player.w / 2;
   const centerY = player.y + player.h / 2;
   for (const star of stars) {
@@ -315,7 +310,7 @@ function update(dt, timestamp) {
   }
   const desiredCamera = clamp(player.y - 270, 0, WORLD_BOTTOM - 470);
   camera = Math.min(camera, camera + (desiredCamera - camera) * Math.min(1, dt * 4));
-  if (player.y > camera + H + 50 || player.y > WORLD_BOTTOM + 80) { finish(false); return; }
+  if (player.y + player.h >= camera + H) { finish(false); return; }
   if (player.y < SUMMIT && player.x + player.w > 360 && player.x < 540) { finish(true); return; }
   effects = effects.filter((effect) => effect.life > 0);
   for (const effect of effects) { effect.x += effect.vx * dt; effect.y += effect.vy * dt; effect.vy += 180 * dt; effect.life -= dt; }
