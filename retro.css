@@ -1,0 +1,70 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
+
+/* Hard edges, a small palette and a visible pixel grid give the page its arcade look. */
+body {
+  font-family: 'VT323', monospace;
+  font-size: 18px;
+  background: #121b35;
+  background-image: linear-gradient(#25335333 1px, transparent 1px), linear-gradient(90deg, #25335333 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+.topbar { border-bottom: 3px solid #334e6b; }
+.brand, .hero h1, .card-heading h2, .overlay-panel h2 {
+  font-family: 'Press Start 2P', monospace;
+  font-weight: 400;
+}
+.brand { font-size: 14px; line-height: 1.5; }
+.brand-icon { border-radius: 0; box-shadow: 4px 4px 0 #926b56; }
+.hero h1 {
+  font-size: clamp(23px, 3.1vw, 42px);
+  line-height: 1.45;
+  letter-spacing: -2px;
+  text-shadow: 4px 4px 0 #31446a;
+}
+.hero p { font-family: 'VT323', monospace; font-size: 22px; color: #bbd4df; }
+.eyebrow { font-family: 'Press Start 2P', monospace; font-size: 8px; color: #f5cf78; letter-spacing: 1px; }
+.game-card, .side-card, .overlay-panel { border: 3px solid #6c8ca1; border-radius: 0; box-shadow: 7px 7px 0 #07122b; }
+.game-hud { background: #1e3453; border-bottom: 3px solid #6c8ca1; }
+.hud-label { font-family: 'Press Start 2P', monospace; font-size: 8px; letter-spacing: 0; color: #a9d7d5; }
+.hud-item strong { font-family: 'Press Start 2P', monospace; font-size: 16px; letter-spacing: 0; color: #fff2ce; }
+.canvas-wrap { background: #376f98; }
+canvas { image-rendering: pixelated; }
+.small-button, .primary-button, .touch-controls button, kbd, .tip, .leaderboard li, .mini-star, .name-row input { border-radius: 0; }
+.small-button, .primary-button, kbd { font-family: 'Press Start 2P', monospace; font-size: 9px; line-height: 1.5; }
+.primary-button { background: #f7cc79; box-shadow: 4px 4px 0 #a56c51; }
+.primary-button:hover { background: #ffe3a0; }
+.primary-button:active { box-shadow: 1px 1px 0 #a56c51; }
+.side-card { background: #1b3150; }
+.card-heading h2 { font-size: 11px; line-height: 1.5; white-space: normal; }
+.mini-star { background: #3c5874; }
+.control-row { font-family: 'VT323', monospace; font-size: 19px; }
+.keys small { font-family: 'VT323', monospace; font-size: 16px; }
+.tip, .board-subtitle, .board-note, .page-footer, .game-footer { font-family: 'VT323', monospace; font-size: 16px; letter-spacing: 0; }
+.tip { background: #294568; color: #d1e9df; }
+.board-subtitle { margin-top: -7px; }
+.leaderboard li { font-family: 'Press Start 2P', monospace; font-size: 10px; background: #274463; }
+.leaderboard li.board-empty { font-family: 'VT323', monospace; font-size: 18px; }
+.overlay { backdrop-filter: none; background: #112340bd; }
+.overlay-panel { background: #1b3150; }
+.overlay-panel h2 { font-size: 18px; line-height: 1.5; }
+.overlay-panel p { font-family: 'VT323', monospace; font-size: 19px; line-height: 1.2; }
+.overlay-panel .result { font-family: 'Press Start 2P', monospace; font-size: 16px; }
+.duck-head { border-radius: 0; box-shadow: 4px 4px 0 #e9ad62; }
+.duck-beak { clip-path: none; width: 15px; height: 9px; }
+.duck-eye { border-radius: 0; }
+.name-row input { font-family: 'Press Start 2P', monospace; font-size: 16px; }
+.touch-controls button { box-shadow: 3px 3px 0 #101d37; }
+
+@media (max-width: 650px) {
+  .brand { font-size: 9px; }
+  .hero h1 { font-size: 20px; letter-spacing: -1px; }
+  .hero p { font-size: 18px; }
+  .eyebrow { font-size: 6px; }
+  .hud-label { font-size: 6px; }
+  .hud-item strong { font-size: 11px; }
+  .overlay-panel h2 { font-size: 14px; }
+  .overlay-panel p { font-size: 18px; }
+  .card-heading h2 { font-size: 11px; }
+  .small-button { font-size: 7px; }
+  .game-footer { font-size: 13px; }
+}
