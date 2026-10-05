@@ -21,3 +21,13 @@ create policy "Cualquiera puede registrar tiempos completados"
     and score = 0
     and time_ms between 1 and 3600000
   );
+
+notify pgrst, 'reload schema';
+
+select 'supabase_tiempos.sql' as migration,
+       exists (
+         select 1 from information_schema.columns
+         where table_schema = 'public'
+           and table_name = 'patito_scores'
+           and column_name = 'time_ms'
+       ) as time_ms_created;
