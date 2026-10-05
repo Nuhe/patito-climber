@@ -26,14 +26,13 @@ El ranking es casual: los datos se validan en la tabla, pero un cliente modifica
 
 ## Publicar en GitHub Pages
 
-1. Creá un repositorio de GitHub para este juego y subí **el contenido de esta carpeta en la raíz del repositorio**. Por ejemplo:
+1. El código ya está en [Nuhe/patito-climber](https://github.com/Nuhe/patito-climber). Para subir futuras modificaciones desde esta carpeta:
 
    ```bash
-   git remote add origin https://github.com/TU_USUARIO/patito-cumbre.git
-   git push -u origin main
+   git push origin main
    ```
 
 2. En el repositorio, abrí **Settings → Pages**. En **Build and deployment**, elegí **Deploy from a branch**, rama `main`, carpeta `/(root)` y guardá.
-3. GitHub mostrará la URL publicada, normalmente `https://TU_USUARIO.github.io/patito-cumbre/`.
+3. La URL publicada será `https://nuhe.github.io/patito-climber/`.
 
 No hace falta compilar ni instalar dependencias. Los archivos usan rutas relativas para funcionar bajo el prefijo del repositorio.
