@@ -1,4 +1,4 @@
-import { getScores, saveScore } from './leaderboard.js';
+import { formatTime, getTimes, saveTime } from './leaderboard.js';
 
 const canvas = document.querySelector('#game');
 const screen = canvas.getContext('2d');
@@ -9,9 +9,9 @@ const ctx = pixelCanvas.getContext('2d');
 screen.imageSmoothingEnabled = false;
 const overlay = document.querySelector('#overlay');
 const panel = document.querySelector('#overlay-panel');
-const scoreEl = document.querySelector('#score');
+const timerEl = document.querySelector('#timer');
 const heightEl = document.querySelector('#height');
-const livesEl = document.querySelector('#lives');
+const starsEl = document.querySelector('#stars');
 const boardEl = document.querySelector('#leaderboard');
 const boardNote = document.querySelector('#board-note');
 const soundButton = document.querySelector('#sound-button');
@@ -31,12 +31,13 @@ let enemies = [];
 let raptors = [];
 let effects = [];
 let camera = WORLD_BOTTOM - 470;
-let score = 0;
-let lives = 3;
+let starsCollected = 0;
 let bestY = WORLD_BOTTOM;
+let highestLandingY = WORLD_BOTTOM;
 let elapsed = 0;
+let runStartedAt = 0;
 let lastTime = 0;
-let pendingScore = null;
+let pendingTime = null;
 let submitting = false;
 
 const rand = (seed) => {
@@ -83,7 +84,9 @@ function makeWorld() {
     for (let x = -shift; x < W; x += 215) {
       const width = 143 + (row % 3) * 10;
       if (x + width < 20 || x > W - 20) continue;
-      platforms.push({ x, y, w: width, h: 22, ground: false });
+      const column = Math.floor((x + shift) / 215);
+      const fragile = row > 0 && (row + column * 2) % 5 === 0;
+      platforms.push({ x, y, w: width, h: 22, ground: false, fragile, crackTime: null, broken: false });
       if ((row + Math.floor((x + shift) / 215)) % 3 === 0 && x > 0 && x + width < W) {
         stars.push({ x: x + width / 2, y: y - 46, taken: false, phase: random() * 6.28 });
       }
@@ -109,112 +112,110 @@ function makeWorld() {
 
 function reset() {
   makeWorld();
-  player = { x: START_X, y: WORLD_BOTTOM - 39, vx: 0, vy: 0, w: 34, h: 39, facing: 1, grounded: true, invincible: 0, attack: 0, attackCooldown: 0, jumpHeld: false };
+  player = { x: START_X, y: WORLD_BOTTOM - 39, vx: 0, vy: 0, w: 34, h: 39, facing: 1, grounded: true, attack: 0, attackCooldown: 0, jumpHeld: false };
   effects = [];
   camera = WORLD_BOTTOM - 470;
-  score = 0;
-  lives = 3;
+  starsCollected = 0;
   bestY = WORLD_BOTTOM;
+  highestLandingY = WORLD_BOTTOM;
   elapsed = 0;
-  pendingScore = null;
+  pendingTime = null;
   updateHud();
 }
 
 function updateHud() {
-  scoreEl.textContent = String(score).padStart(6, '0');
+  timerEl.textContent = formatTime(Math.round(elapsed * 1000));
   heightEl.textContent = `${String(Math.floor((WORLD_BOTTOM - bestY) / 10)).padStart(3, '0')} m`;
-  livesEl.textContent = '♥ '.repeat(lives).trim() || '—';
+  starsEl.textContent = `★ ${String(starsCollected).padStart(2, '0')}`;
 }
 
 function showTitle() {
   mode = 'title';
   overlay.classList.remove('hidden');
-  panel.innerHTML = `<div class="overlay-icon duck-badge"><span class="duck-head"></span><span class="duck-beak"></span><span class="duck-eye"></span></div><h2>¡A la cima!</h2><p>Escalá los bloques de hielo, juntá estrellas y defendete de búhos y aves rapaces con tu aletazo.</p><button type="button" class="primary-button" id="start-button">JUGAR AHORA</button>`;
+  panel.innerHTML = `<div class="overlay-icon duck-badge"><span class="duck-head"></span><span class="duck-beak"></span><span class="duck-eye"></span></div><h2>¡A la cima!</h2><p>Llegá lo más rápido posible. El hielo agrietado se rompe y, si caés o te golpean, termina el intento.</p><button type="button" class="primary-button" id="start-button">JUGAR AHORA</button>`;
   document.querySelector('#start-button').addEventListener('click', start);
 }
 
 function start() {
+  if (submitting) return;
   reset();
+  runStartedAt = performance.now();
   mode = 'playing';
   overlay.classList.add('hidden');
   beep(600, 0.15);
 }
 
-function finish(won) {
+function finish(won, reason = 'Caíste de la plataforma.') {
   if (mode !== 'playing') return;
   mode = 'finished';
-  if (won) { score += 1000 + Math.max(0, 500 - Math.floor(elapsed * 3)); beep(900, 0.25, 'triangle'); }
+  if (won) beep(900, 0.25, 'triangle');
   else beep(180, 0.35, 'sawtooth', 0.025);
   updateHud();
-  pendingScore = score;
+  pendingTime = won ? Math.max(1, Math.round(elapsed * 1000)) : null;
   overlay.classList.remove('hidden');
-  panel.innerHTML = `<div class="overlay-icon">${won ? '★' : '❄'}</div><h2>${won ? '¡Llegaste a la cima!' : 'Fin de la aventura'}</h2><p>${won ? '¡El patito conquistó la montaña!' : 'La montaña puede esperar. Tu marca ya merece un lugar.'}</p><div class="result">${score.toLocaleString('es-AR')} puntos</div><p>Escribí hasta 3 letras para el ranking global.</p><form id="score-form"><div class="name-row"><input id="player-name" maxlength="3" minlength="1" pattern="[A-Za-z]{1,3}" autocomplete="off" autocapitalize="characters" aria-label="Iniciales, hasta tres letras" placeholder="ABC" required /><button class="primary-button" type="submit">GUARDAR</button></div><p class="inline-error" id="save-error" role="alert"></p></form><button class="small-button" id="skip-button" type="button">Jugar de nuevo</button>`;
-  document.querySelector('#score-form').addEventListener('submit', submitScore);
+  if (!won) {
+    panel.innerHTML = `<div class="overlay-icon">❄</div><h2>Fin del intento</h2><p>${reason} Tu tiempo fue ${formatTime(Math.round(elapsed * 1000))}. Solo las partidas completadas entran al ranking.</p><button class="primary-button" id="again-button" type="button">REINTENTAR</button>`;
+    document.querySelector('#again-button').addEventListener('click', start);
+    return;
+  }
+  panel.innerHTML = `<div class="overlay-icon">★</div><h2>¡Llegaste a la cima!</h2><p>Terminaste la montaña en:</p><div class="result">${formatTime(pendingTime)}</div><p>Escribí hasta 3 letras para el ranking de tiempos.</p><form id="score-form"><div class="name-row"><input id="player-name" maxlength="3" minlength="1" pattern="[A-Za-z]{1,3}" autocomplete="off" autocapitalize="characters" aria-label="Iniciales, hasta tres letras" placeholder="ABC" required /><button class="primary-button" type="submit">GUARDAR</button></div><p class="inline-error" id="save-error" role="alert"></p></form><button class="small-button" id="skip-button" type="button">Jugar de nuevo</button>`;
+  document.querySelector('#score-form').addEventListener('submit', submitTime);
   document.querySelector('#skip-button').addEventListener('click', start);
   document.querySelector('#player-name').focus();
 }
 
-async function submitScore(event) {
+async function submitTime(event) {
   event.preventDefault();
-  if (submitting || pendingScore === null) return;
+  if (submitting || pendingTime === null) return;
   const input = document.querySelector('#player-name');
   const name = input.value.trim().toUpperCase();
   const error = document.querySelector('#save-error');
   if (!/^[A-Z]{1,3}$/.test(name)) { error.textContent = 'Usá de 1 a 3 letras, sin números.'; return; }
   submitting = true;
   const button = document.querySelector('#score-form button');
+  const skipButton = document.querySelector('#skip-button');
   button.disabled = true;
+  skipButton.disabled = true;
   button.textContent = 'GUARDANDO…';
   error.textContent = '';
   try {
-    await saveScore(name, pendingScore);
-    pendingScore = null;
+    const savedTime = pendingTime;
+    await saveTime(name, savedTime);
+    pendingTime = null;
     await refreshBoard();
-    panel.innerHTML = `<div class="overlay-icon">★</div><h2>¡Marca guardada!</h2><p><strong>${name}</strong> sumó ${score.toLocaleString('es-AR')} puntos al ranking global.</p><button type="button" class="primary-button" id="again-button">JUGAR DE NUEVO</button>`;
+    panel.innerHTML = `<div class="overlay-icon">★</div><h2>¡Tiempo guardado!</h2><p><strong>${name}</strong> completó el nivel en ${formatTime(savedTime)}.</p><button type="button" class="primary-button" id="again-button">JUGAR DE NUEVO</button>`;
     document.querySelector('#again-button').addEventListener('click', start);
     beep(760, 0.16);
   } catch (e) {
     error.textContent = `${e.message} Probá otra vez.`;
     button.disabled = false;
+    skipButton.disabled = false;
     button.textContent = 'GUARDAR';
   } finally { submitting = false; }
 }
 
 async function refreshBoard() {
   try {
-    const rows = await getScores();
+    const rows = await getTimes();
     boardEl.replaceChildren();
     if (!rows.length) {
       const li = document.createElement('li');
       li.className = 'board-empty';
-      li.textContent = '¡Todavía no hay marcas! Sé el primero.';
+      li.textContent = '¡Todavía no hay tiempos! Sé el primero.';
       boardEl.append(li);
     }
     rows.forEach((row, i) => {
       const li = document.createElement('li');
       const rank = document.createElement('span'); rank.className = 'rank'; rank.textContent = String(i + 1).padStart(2, '0');
       const name = document.createElement('span'); name.textContent = row.name;
-      const value = document.createElement('span'); value.className = 'score-value'; value.textContent = Number(row.score).toLocaleString('es-AR');
+      const value = document.createElement('span'); value.className = 'score-value'; value.textContent = formatTime(row.time_ms);
       li.append(rank, name, value); boardEl.append(li);
     });
-    boardNote.textContent = 'Las marcas se comparten entre todos los jugadores.';
+    boardNote.textContent = 'Gana quien complete la montaña en menos tiempo.';
   } catch (e) {
-    boardEl.innerHTML = '<li class="board-empty">El ranking todavía no está disponible.</li>';
-    boardNote.textContent = 'Ejecutá supabase.sql en tu proyecto para activarlo.';
+    boardEl.innerHTML = '<li class="board-empty">El ranking de tiempos todavía no está disponible.</li>';
+    boardNote.textContent = 'Ejecutá supabase_tiempos.sql en Supabase para activarlo.';
   }
-}
-
-function loseLife() {
-  lives--;
-  beep(170, 0.25, 'sawtooth', 0.025);
-  if (lives <= 0) { finish(false); return; }
-  player.x = START_X;
-  player.y = WORLD_BOTTOM - player.h;
-  player.vx = 0;
-  player.vy = 0;
-  player.invincible = 2.5;
-  camera = WORLD_BOTTOM - 470;
-  updateHud();
 }
 
 function sparkle(x, y, color = '#fff4ad', count = 9) {
@@ -224,8 +225,19 @@ function sparkle(x, y, color = '#fff4ad', count = 9) {
   }
 }
 
-function update(dt) {
-  elapsed += dt;
+function update(dt, timestamp) {
+  elapsed = Math.max(0, (timestamp - runStartedAt) / 1000);
+  timerEl.textContent = formatTime(Math.round(elapsed * 1000));
+  if (elapsed >= 3600) { finish(false, 'Se terminó el tiempo límite de una hora.'); return; }
+  for (const platform of platforms) {
+    if (!platform.fragile || platform.crackTime === null || platform.broken) continue;
+    platform.crackTime -= dt;
+    if (platform.crackTime <= 0) {
+      platform.broken = true;
+      sparkle(platform.x + platform.w / 2, platform.y + 8, '#bde9e7', 12);
+      beep(125, 0.16, 'square', 0.025);
+    }
+  }
   const left = keys.has('left');
   const right = keys.has('right');
   const jump = keys.has('jump');
@@ -240,7 +252,6 @@ function update(dt) {
   player.jumpHeld = jump;
   player.attackCooldown = Math.max(0, player.attackCooldown - dt);
   player.attack = Math.max(0, player.attack - dt);
-  player.invincible = Math.max(0, player.invincible - dt);
   if (attack && player.attackCooldown === 0) {
     player.attack = 0.32;
     player.attackCooldown = 0.55;
@@ -253,18 +264,24 @@ function update(dt) {
   player.grounded = false;
   if (player.vy >= 0) {
     for (const p of platforms) {
+      if (p.broken) continue;
       if (previousBottom <= p.y + 9 && player.y + player.h >= p.y && player.x + player.w > p.x + 5 && player.x < p.x + p.w - 5) {
+        if (p.y > highestLandingY + 1) { finish(false); return; }
         player.y = p.y - player.h;
         player.vy = 0;
         player.grounded = true;
+        highestLandingY = Math.min(highestLandingY, p.y);
+        if (p.fragile && p.crackTime === null) p.crackTime = 0.72;
+        break;
       }
     }
   }
+  if (player.vy > 0 && player.y + player.h > highestLandingY + 24) { finish(false); return; }
   const centerX = player.x + player.w / 2;
   const centerY = player.y + player.h / 2;
   for (const star of stars) {
     if (!star.taken && Math.hypot(centerX - star.x, centerY - star.y) < 31) {
-      star.taken = true; score += 150; sparkle(star.x, star.y); beep(840, 0.16, 'sine'); updateHud();
+      star.taken = true; starsCollected++; sparkle(star.x, star.y); beep(840, 0.16, 'sine'); updateHud();
     }
   }
   for (const enemy of enemies) {
@@ -285,30 +302,20 @@ function update(dt) {
     const distance = Math.hypot(centerX - enemy.x, centerY - enemy.y);
     if (player.attack > 0 && distance < (raptor ? 75 : 70)) {
       enemy.alive = false;
-      score += raptor ? 200 : 100;
       sparkle(enemy.x, enemy.y, raptor ? '#ffdb86' : '#b6f8ff', 12);
       beep(raptor ? 520 : 710, 0.13, 'square', 0.02);
-      updateHud();
-    } else if (distance < (raptor ? 34 : 31) && player.invincible === 0) {
-      player.invincible = 1.4;
-      player.vy = -340;
-      player.vx = centerX < enemy.x ? -230 : 230;
-      lives--;
-      beep(160, 0.2, 'sawtooth', 0.025);
-      if (lives <= 0) { finish(false); return; }
-      updateHud();
+    } else if (distance < (raptor ? 34 : 31)) {
+      finish(false, raptor ? 'Te alcanzó un ave rapaz.' : 'Te alcanzó un búho.');
+      return;
     }
   }
   if (player.y < bestY - 10) {
-    const oldBand = Math.floor((WORLD_BOTTOM - bestY) / 100);
     bestY = player.y;
-    const newBand = Math.floor((WORLD_BOTTOM - bestY) / 100);
-    if (newBand > oldBand) score += (newBand - oldBand) * 20;
     updateHud();
   }
   const desiredCamera = clamp(player.y - 270, 0, WORLD_BOTTOM - 470);
-  camera += (desiredCamera - camera) * Math.min(1, dt * 4);
-  if (player.y > camera + H + 50 || player.y > WORLD_BOTTOM + 80) { loseLife(); return; }
+  camera = Math.min(camera, camera + (desiredCamera - camera) * Math.min(1, dt * 4));
+  if (player.y > camera + H + 50 || player.y > WORLD_BOTTOM + 80) { finish(false); return; }
   if (player.y < SUMMIT && player.x + player.w > 360 && player.x < 540) { finish(true); return; }
   effects = effects.filter((effect) => effect.life > 0);
   for (const effect of effects) { effect.x += effect.vx * dt; effect.y += effect.vy * dt; effect.vy += 180 * dt; effect.life -= dt; }
@@ -349,6 +356,7 @@ function drawBackground(time) {
 }
 
 function drawPlatform(p) {
+  if (p.broken) return;
   const y = p.y - camera;
   if (y < -40 || y > H + 20) return;
   if (p.ground) {
@@ -358,11 +366,20 @@ function drawPlatform(p) {
     for (let x = 20; x < W; x += 74) block(x, y + 26, 27, 5, '#69a9be');
     return;
   }
-  block(p.x, y + 6, p.w, 19, '#275578');
-  block(p.x + 4, y + 9, p.w - 8, 12, '#438aa9');
-  block(p.x, y, p.w, 9, '#d8e9d8');
-  block(p.x + 7, y, p.w - 14, 4, '#fff4df');
+  const warning = p.fragile && p.crackTime !== null && p.crackTime < 0.36;
+  block(p.x, y + 6, p.w, 19, p.fragile ? '#315e7e' : '#275578');
+  block(p.x + 4, y + 9, p.w - 8, 12, p.fragile ? '#66a9b8' : '#438aa9');
+  block(p.x, y, p.w, 9, warning ? '#ffd38a' : '#d8e9d8');
+  block(p.x + 7, y, p.w - 14, 4, warning ? '#fff0b0' : '#fff4df');
   for (let x = p.x + 27; x < p.x + p.w - 12; x += 44) block(x, y + 14, 5, 7, '#8ac5ca');
+  if (p.fragile) {
+    const crack = warning ? '#b45d63' : '#336f8e';
+    block(p.x + p.w * 0.34, y + 2, 5, 8, crack);
+    block(p.x + p.w * 0.34 + 5, y + 9, 9, 4, crack);
+    block(p.x + p.w * 0.34 + 10, y + 13, 5, 7, crack);
+    block(p.x + p.w * 0.7, y + 5, 5, 10, crack);
+    block(p.x + p.w * 0.7 - 7, y + 12, 9, 4, crack);
+  }
   if (p.summit) {
     block(p.x + p.w / 2, y - 91, 7, 91, '#3e5471');
     block(p.x + p.w / 2 + 7, y - 91, 54, 11, '#f49b65');
@@ -431,7 +448,7 @@ function drawRaptor(raptor, time) {
 }
 
 function drawDuck(time) {
-  if (!player || (player.invincible > 0 && Math.floor(time * 12) % 2)) return;
+  if (!player) return;
   const x = player.x + player.w / 2;
   const y = player.y - camera + player.h / 2 + (player.grounded && player.vx ? Math.round(Math.sin(time * 12) * 2) : 0);
   ctx.save(); ctx.translate(Math.round(x), Math.round(y)); ctx.scale(player.facing, 1);
@@ -494,7 +511,7 @@ function draw(time) {
 function frame(timestamp) {
   const dt = Math.min(0.033, (timestamp - (lastTime || timestamp)) / 1000);
   lastTime = timestamp;
-  if (mode === 'playing') update(dt);
+  if (mode === 'playing') update(dt, timestamp);
   draw(timestamp / 1000);
   requestAnimationFrame(frame);
 }
