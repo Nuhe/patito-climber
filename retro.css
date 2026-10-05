@@ -27,6 +27,7 @@ body {
 .game-hud { background: #1e3453; border-bottom: 3px solid #6c8ca1; }
 .hud-label { font-family: 'Press Start 2P', monospace; font-size: 8px; letter-spacing: 0; color: #a9d7d5; }
 .hud-item strong { font-family: 'Press Start 2P', monospace; font-size: 16px; letter-spacing: 0; color: #fff2ce; }
+#stars { color: #f7d27a; }
 .canvas-wrap { background: #376f98; }
 canvas { image-rendering: pixelated; }
 .small-button, .primary-button, .touch-controls button, kbd, .tip, .leaderboard li, .mini-star, .name-row input { border-radius: 0; }
