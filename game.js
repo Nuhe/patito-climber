@@ -1,7 +1,12 @@
 import { getScores, saveScore } from './leaderboard.js';
 
 const canvas = document.querySelector('#game');
-const ctx = canvas.getContext('2d');
+const screen = canvas.getContext('2d');
+const pixelCanvas = document.createElement('canvas');
+pixelCanvas.width = canvas.width / 2;
+pixelCanvas.height = canvas.height / 2;
+const ctx = pixelCanvas.getContext('2d');
+screen.imageSmoothingEnabled = false;
 const overlay = document.querySelector('#overlay');
 const panel = document.querySelector('#overlay-panel');
 const scoreEl = document.querySelector('#score');
@@ -23,6 +28,7 @@ let player;
 let platforms = [];
 let stars = [];
 let enemies = [];
+let raptors = [];
 let effects = [];
 let camera = WORLD_BOTTOM - 470;
 let score = 0;
@@ -69,6 +75,7 @@ function makeWorld() {
   platforms = [{ x: 0, y: WORLD_BOTTOM, w: W, h: 40, ground: true }];
   stars = [];
   enemies = [];
+  raptors = [];
   const rowYs = [];
   for (let y = WORLD_BOTTOM - 112; y >= 190; y -= 112) rowYs.push(y);
   rowYs.forEach((y, row) => {
@@ -88,6 +95,16 @@ function makeWorld() {
     }
   });
   platforms.push({ x: 345, y: 150, w: 210, h: 25, summit: true });
+  for (const [index, y] of [2470, 2030, 1590, 1150, 710, 360].entries()) {
+    raptors.push({
+      x: index % 2 ? W + 50 : -50,
+      y,
+      baseY: y,
+      speed: (index % 2 ? -1 : 1) * (118 + index * 8),
+      phase: index * 1.7,
+      alive: true,
+    });
+  }
 }
 
 function reset() {
@@ -112,7 +129,7 @@ function updateHud() {
 function showTitle() {
   mode = 'title';
   overlay.classList.remove('hidden');
-  panel.innerHTML = `<div class="overlay-icon duck-badge"><span class="duck-head"></span><span class="duck-beak"></span><span class="duck-eye"></span></div><h2>¡A la cima!</h2><p>Ayuda al patito a escalar la montaña helada. Recolecta estrellas y usa el aletazo para espantar guardianes.</p><button type="button" class="primary-button" id="start-button">JUGAR AHORA</button>`;
+  panel.innerHTML = `<div class="overlay-icon duck-badge"><span class="duck-head"></span><span class="duck-beak"></span><span class="duck-eye"></span></div><h2>¡A la cima!</h2><p>Escalá los bloques de hielo, juntá estrellas y defendete de búhos y aves rapaces con tu aletazo.</p><button type="button" class="primary-button" id="start-button">JUGAR AHORA</button>`;
   document.querySelector('#start-button').addEventListener('click', start);
 }
 
@@ -225,8 +242,8 @@ function update(dt) {
   player.attack = Math.max(0, player.attack - dt);
   player.invincible = Math.max(0, player.invincible - dt);
   if (attack && player.attackCooldown === 0) {
-    player.attack = 0.23;
-    player.attackCooldown = 0.48;
+    player.attack = 0.32;
+    player.attackCooldown = 0.55;
     beep(290, 0.08, 'triangle');
   }
   const previousBottom = player.y + player.h;
@@ -254,10 +271,25 @@ function update(dt) {
     if (!enemy.alive) continue;
     enemy.x += enemy.direction * 70 * dt;
     if (enemy.x < enemy.min || enemy.x > enemy.max) enemy.direction *= -1;
+  }
+  for (const raptor of raptors) {
+    if (!raptor.alive) continue;
+    raptor.x += raptor.speed * dt;
+    if (raptor.speed > 0 && raptor.x > W + 55) raptor.x = -55;
+    if (raptor.speed < 0 && raptor.x < -55) raptor.x = W + 55;
+    raptor.y = raptor.baseY + Math.sin(elapsed * 1.5 + raptor.phase) * 59;
+  }
+  for (const enemy of [...enemies, ...raptors]) {
+    if (!enemy.alive) continue;
+    const raptor = 'baseY' in enemy;
     const distance = Math.hypot(centerX - enemy.x, centerY - enemy.y);
-    if (player.attack > 0 && distance < 70) {
-      enemy.alive = false; score += 100; sparkle(enemy.x, enemy.y, '#b6f8ff'); beep(710, 0.13, 'square', 0.02); updateHud();
-    } else if (distance < 31 && player.invincible === 0) {
+    if (player.attack > 0 && distance < (raptor ? 75 : 70)) {
+      enemy.alive = false;
+      score += raptor ? 200 : 100;
+      sparkle(enemy.x, enemy.y, raptor ? '#ffdb86' : '#b6f8ff', 12);
+      beep(raptor ? 520 : 710, 0.13, 'square', 0.02);
+      updateHud();
+    } else if (distance < (raptor ? 34 : 31) && player.invincible === 0) {
       player.invincible = 1.4;
       player.vy = -340;
       player.vx = centerX < enemy.x ? -230 : 230;
@@ -282,29 +314,37 @@ function update(dt) {
   for (const effect of effects) { effect.x += effect.vx * dt; effect.y += effect.vy * dt; effect.vy += 180 * dt; effect.life -= dt; }
 }
 
-function roundedRect(x, y, w, h, radius, fill) {
-  ctx.fillStyle = fill;
-  ctx.beginPath(); ctx.roundRect(x, y, w, h, radius); ctx.fill();
+function block(x, y, w, h, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(Math.round(x), Math.round(y), w, h);
 }
 
 function drawBackground(time) {
-  const sky = ctx.createLinearGradient(0, 0, 0, H);
-  sky.addColorStop(0, '#23557f'); sky.addColorStop(0.56, '#5998c2'); sky.addColorStop(1, '#b2dae6');
-  ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = '#fff5c9'; ctx.beginPath(); ctx.arc(747, 99, 39, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#ffffff20'; ctx.beginPath(); ctx.arc(747, 99, 58, 0, Math.PI * 2); ctx.fill();
-  const offset = camera * 0.07;
-  ctx.fillStyle = '#a2cee0';
-  ctx.beginPath(); ctx.moveTo(0, 440 + offset % 80); ctx.lineTo(135, 232 + offset % 80); ctx.lineTo(275, 450 + offset % 80); ctx.lineTo(446, 197 + offset % 80); ctx.lineTo(650, 458 + offset % 80); ctx.lineTo(795, 255 + offset % 80); ctx.lineTo(900, 423 + offset % 80); ctx.lineTo(900, 600); ctx.lineTo(0, 600); ctx.fill();
-  ctx.fillStyle = '#77b4d0';
-  ctx.beginPath(); ctx.moveTo(0, 495 + offset % 110); ctx.lineTo(165, 334 + offset % 110); ctx.lineTo(342, 520 + offset % 110); ctx.lineTo(570, 288 + offset % 110); ctx.lineTo(770, 518 + offset % 110); ctx.lineTo(900, 390 + offset % 110); ctx.lineTo(900, 600); ctx.lineTo(0, 600); ctx.fill();
+  block(0, 0, W, H, '#376f98');
+  block(0, 166, W, 190, '#4e8db1');
+  block(0, 356, W, H - 356, '#6aa7bf');
+  block(698, 52, 94, 94, '#f4d888');
+  block(710, 40, 70, 118, '#f4d888');
+  block(686, 64, 118, 70, '#f4d888');
+  block(716, 58, 60, 80, '#ffe7a1');
+  const offset = Math.round(camera * 0.055) % 66;
+  for (let x = -40; x < W + 70; x += 16) {
+    const farPeak = Math.min(Math.abs(x - 160), Math.abs(x - 502), Math.abs(x - 838));
+    const nearPeak = Math.min(Math.abs(x - 58), Math.abs(x - 358), Math.abs(x - 686));
+    block(x, 335 + farPeak * 0.72 + offset, 16, H, '#94c5d4');
+    block(x, 396 + nearPeak * 0.62 + offset, 16, H, '#6aabc0');
+  }
+  for (const [x, y] of [[72, 126], [340, 78], [588, 196]]) {
+    const cloudY = y + Math.round(camera * 0.025) % 40;
+    block(x, cloudY, 74, 10, '#d3ebdf');
+    block(x + 16, cloudY - 12, 46, 12, '#d3ebdf');
+    block(x + 26, cloudY - 20, 28, 8, '#d3ebdf');
+  }
   const snowRand = rand(97531);
-  ctx.fillStyle = '#ffffffa0';
-  for (let i = 0; i < 70; i++) {
-    const x = snowRand() * W;
-    const y = (snowRand() * H + time * (10 + (i % 4) * 6)) % H;
-    const r = 1 + (i % 3) * 0.5;
-    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  for (let i = 0; i < 65; i++) {
+    const x = Math.floor(snowRand() * W / 4) * 4;
+    const y = Math.floor(((snowRand() * H + time * (8 + i % 5 * 5)) % H) / 4) * 4;
+    block(x, y, i % 4 ? 3 : 5, i % 4 ? 3 : 5, '#d8f0e5');
   }
 }
 
@@ -312,89 +352,143 @@ function drawPlatform(p) {
   const y = p.y - camera;
   if (y < -40 || y > H + 20) return;
   if (p.ground) {
-    ctx.fillStyle = '#e6f8fa'; ctx.fillRect(0, y, W, 15);
-    ctx.fillStyle = '#78a9c6'; ctx.fillRect(0, y + 15, W, 45);
+    block(0, y, W, 10, '#f1f3dc');
+    block(0, y + 10, W, 10, '#aed5d2');
+    block(0, y + 20, W, 48, '#477fa4');
+    for (let x = 20; x < W; x += 74) block(x, y + 26, 27, 5, '#69a9be');
     return;
   }
-  roundedRect(p.x, y + 7, p.w, 18, 5, '#3d7ca4');
-  roundedRect(p.x, y + 2, p.w, 12, 6, '#b6e5ef');
-  roundedRect(p.x + 3, y, p.w - 6, 7, 5, '#f1ffff');
-  ctx.fillStyle = '#72bbd3';
-  for (let x = p.x + 25; x < p.x + p.w - 10; x += 52) ctx.fillRect(x, y + 13, 2, 9);
+  block(p.x, y + 6, p.w, 19, '#275578');
+  block(p.x + 4, y + 9, p.w - 8, 12, '#438aa9');
+  block(p.x, y, p.w, 9, '#d8e9d8');
+  block(p.x + 7, y, p.w - 14, 4, '#fff4df');
+  for (let x = p.x + 27; x < p.x + p.w - 12; x += 44) block(x, y + 14, 5, 7, '#8ac5ca');
   if (p.summit) {
-    ctx.fillStyle = '#71596e'; ctx.fillRect(p.x + p.w / 2, y - 95, 5, 95);
-    ctx.fillStyle = '#ffdb78'; ctx.beginPath(); ctx.moveTo(p.x + p.w / 2 + 5, y - 94); ctx.lineTo(p.x + p.w / 2 + 68, y - 78); ctx.lineTo(p.x + p.w / 2 + 5, y - 60); ctx.fill();
+    block(p.x + p.w / 2, y - 91, 7, 91, '#3e5471');
+    block(p.x + p.w / 2 + 7, y - 91, 54, 11, '#f49b65');
+    block(p.x + p.w / 2 + 7, y - 80, 42, 10, '#f6b56f');
+    block(p.x + p.w / 2 + 7, y - 70, 28, 10, '#f4d481');
   }
 }
 
 function drawStar(star, time) {
   if (star.taken) return;
-  const y = star.y - camera + Math.sin(time * 3 + star.phase) * 4;
+  const x = Math.round(star.x);
+  const y = Math.round(star.y - camera + Math.sin(time * 3 + star.phase) * 4);
   if (y < -30 || y > H + 30) return;
-  ctx.save(); ctx.translate(star.x, y); ctx.rotate(Math.sin(time * 2 + star.phase) * 0.13);
-  ctx.shadowColor = '#ffed9e'; ctx.shadowBlur = 15; ctx.fillStyle = '#ffe27c';
-  ctx.beginPath();
-  for (let i = 0; i < 10; i++) {
-    const radius = i % 2 ? 8 : 18;
-    const angle = -Math.PI / 2 + i * Math.PI / 5;
-    const x = Math.cos(angle) * radius, yy = Math.sin(angle) * radius;
-    if (i) ctx.lineTo(x, yy); else ctx.moveTo(x, yy);
-  }
-  ctx.closePath(); ctx.fill(); ctx.restore();
+  block(x - 4, y - 17, 8, 34, '#f5cf78');
+  block(x - 17, y - 4, 34, 8, '#f5cf78');
+  block(x - 11, y - 11, 22, 22, '#ffe69a');
+  block(x - 4, y - 4, 8, 8, '#fff5ca');
 }
 
 function drawEnemy(enemy, time) {
   if (!enemy.alive) return;
-  const y = enemy.y - camera + Math.sin(time * 4 + enemy.phase) * 3;
+  const y = enemy.y - camera + Math.round(Math.sin(time * 4 + enemy.phase) * 3);
   if (y < -35 || y > H + 35) return;
-  ctx.save(); ctx.translate(enemy.x, y);
-  ctx.fillStyle = '#5b5a90'; ctx.beginPath(); ctx.arc(0, 0, 19, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#7774a6'; ctx.beginPath(); ctx.arc(-13, -14, 8, 0, Math.PI * 2); ctx.arc(13, -14, 8, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#e7eff7'; ctx.beginPath(); ctx.arc(-7, -3, 6, 0, Math.PI * 2); ctx.arc(7, -3, 6, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#253454'; ctx.beginPath(); ctx.arc(-5 + enemy.direction, -3, 2, 0, Math.PI * 2); ctx.arc(9 + enemy.direction, -3, 2, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#ffc377'; ctx.beginPath(); ctx.moveTo(-4, 5); ctx.lineTo(4, 5); ctx.lineTo(0, 11); ctx.fill();
+  const x = Math.round(enemy.x);
+  block(x - 16, y - 15, 32, 31, '#40466f');
+  block(x - 13, y - 20, 10, 9, '#40466f');
+  block(x + 3, y - 20, 10, 9, '#40466f');
+  block(x - 12, y - 9, 9, 9, '#e8eddc');
+  block(x + 3, y - 9, 9, 9, '#e8eddc');
+  block(x - 7 + enemy.direction * 2, y - 5, 4, 4, '#1c294e');
+  block(x + 7 + enemy.direction * 2, y - 5, 4, 4, '#1c294e');
+  block(x - 4, y + 3, 8, 6, '#ecaa69');
+  block(x - 12, y + 16, 5, 5, '#ecaa69');
+  block(x + 7, y + 16, 5, 5, '#ecaa69');
+}
+
+function drawRaptor(raptor, time) {
+  if (!raptor.alive) return;
+  const y = raptor.y - camera;
+  if (y < -55 || y > H + 55) return;
+  ctx.save();
+  ctx.translate(Math.round(raptor.x), Math.round(y));
+  ctx.scale(Math.sign(raptor.speed), 1);
+  const wingUp = Math.sin(time * 12 + raptor.phase) > 0;
+  block(-23, -7, 42, 18, '#674d55');
+  block(-18, -4, 28, 11, '#a87962');
+  block(12, -12, 17, 13, '#674d55');
+  block(24, -6, 15, 5, '#f4bd6a');
+  block(17, -8, 5, 5, '#fff5d4');
+  block(19, -6, 3, 3, '#172844');
+  block(-32, -4, 12, 7, '#674d55');
+  block(-40, 1, 13, 5, '#674d55');
+  if (wingUp) {
+    block(-13, -25, 21, 19, '#4c3e58');
+    block(-18, -36, 11, 15, '#4c3e58');
+    block(-23, -29, 8, 18, '#8a645d');
+    block(-8, -20, 12, 6, '#bc8b69');
+  } else {
+    block(-14, 5, 24, 14, '#4c3e58');
+    block(-20, 15, 13, 13, '#4c3e58');
+    block(-7, 14, 14, 7, '#bc8b69');
+  }
+  block(-8, 11, 5, 10, '#e1ad6f');
+  block(5, 11, 5, 10, '#e1ad6f');
   ctx.restore();
 }
 
 function drawDuck(time) {
   if (!player || (player.invincible > 0 && Math.floor(time * 12) % 2)) return;
   const x = player.x + player.w / 2;
-  const y = player.y - camera + player.h / 2 + (player.grounded ? Math.sin(time * 10) * 1.5 : 0);
-  ctx.save(); ctx.translate(x, y); ctx.scale(player.facing, 1);
-  ctx.fillStyle = '#df9b61'; ctx.beginPath(); ctx.ellipse(-8, 22, 6, 3, 0, 0, 7); ctx.ellipse(10, 22, 6, 3, 0, 0, 7); ctx.fill();
-  ctx.fillStyle = '#f3c967'; ctx.beginPath(); ctx.ellipse(0, 4, 18, 17, 0, 0, 7); ctx.fill();
-  ctx.fillStyle = '#fff0ad'; ctx.beginPath(); ctx.ellipse(-8, 6, 10, 8, -0.3, 0, 7); ctx.fill();
-  ctx.fillStyle = '#ffe088'; ctx.beginPath(); ctx.arc(1, -13, 16, 0, 7); ctx.fill();
-  ctx.fillStyle = '#fca65a'; ctx.beginPath(); ctx.moveTo(11, -10); ctx.lineTo(27, -6); ctx.lineTo(12, -2); ctx.fill();
-  ctx.fillStyle = '#2d375a'; ctx.beginPath(); ctx.arc(7, -17, 2.2, 0, 7); ctx.fill();
-  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(7.5, -17.7, 0.7, 0, 7); ctx.fill();
-  ctx.fillStyle = '#ff91a4'; ctx.beginPath(); ctx.arc(10, -10, 3, 0, 7); ctx.fill();
-  ctx.fillStyle = '#f4d371'; ctx.beginPath(); ctx.ellipse(-14, 1, 9, 6, -0.25, 0, 7); ctx.fill();
-  if (player.attack > 0) {
-    ctx.strokeStyle = '#fff9c2'; ctx.lineWidth = 5; ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.arc(0, 0, 39, -1.15, 1.15); ctx.stroke();
-    ctx.strokeStyle = '#ffffffa0'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, 48, -0.9, 0.8); ctx.stroke();
+  const y = player.y - camera + player.h / 2 + (player.grounded && player.vx ? Math.round(Math.sin(time * 12) * 2) : 0);
+  ctx.save(); ctx.translate(Math.round(x), Math.round(y)); ctx.scale(player.facing, 1);
+  block(-12, 17, 9, 6, '#e8945b');
+  block(5, 17, 9, 6, '#e8945b');
+  block(-16, -4, 32, 22, '#e5a65c');
+  block(-12, -7, 27, 23, '#ffe18a');
+  block(-13, -26, 27, 25, '#ffe18a');
+  block(-10, -30, 21, 5, '#ffe18a');
+  block(12, -17, 16, 7, '#ef9c57');
+  block(12, -10, 12, 4, '#d88351');
+  block(6, -21, 5, 5, '#20334c');
+  block(8, -22, 2, 2, '#fff8dd');
+  block(9, -9, 5, 4, '#f6aa98');
+  const attackFrame = player.attack > 0 ? Math.min(2, Math.floor((1 - player.attack / 0.32) * 3)) : -1;
+  if (attackFrame === 0) {
+    block(-24, -17, 16, 7, '#ffe18a');
+    block(-28, -28, 10, 17, '#fff0aa');
+    block(-23, -33, 6, 10, '#fff0aa');
+  } else if (attackFrame === 1) {
+    block(-15, -4, 31, 11, '#f9c675');
+    block(13, -8, 25, 13, '#ffe799');
+    block(34, -4, 12, 5, '#fff4c0');
+    block(48, -17, 6, 6, '#fff4c0');
+    block(53, -7, 9, 7, '#fff4c0');
+    block(45, 9, 7, 6, '#fff4c0');
+  } else if (attackFrame === 2) {
+    block(-14, 2, 29, 10, '#f9c675');
+    block(12, 8, 22, 9, '#ffe799');
+    block(35, 12, 8, 5, '#fff4c0');
+  } else {
+    block(-19, 0, 17, 10, '#f5bf73');
+    block(-16, 2, 11, 5, '#fff0aa');
   }
   ctx.restore();
 }
 
 function draw(time) {
+  ctx.setTransform(0.5, 0, 0, 0.5, 0, 0);
   drawBackground(time);
   for (const platform of platforms) drawPlatform(platform);
   for (const star of stars) drawStar(star, time);
   for (const enemy of enemies) drawEnemy(enemy, time);
+  for (const raptor of raptors) drawRaptor(raptor, time);
   drawDuck(time);
   for (const effect of effects) {
     ctx.globalAlpha = clamp(effect.life * 2, 0, 1);
-    ctx.fillStyle = effect.color;
-    ctx.beginPath(); ctx.arc(effect.x, effect.y - camera, 3, 0, 7); ctx.fill();
+    block(effect.x, effect.y - camera, 6, 6, effect.color);
   }
   ctx.globalAlpha = 1;
   if (mode === 'playing') {
-    roundedRect(18, 17, 154, 29, 8, '#173c6488');
-    ctx.fillStyle = '#eafaff'; ctx.font = 'bold 15px Outfit, sans-serif';
-    ctx.fillText('↑  LLEGÁ A LA CIMA', 28, 37);
+    block(16, 16, 191, 29, '#183c60');
+    block(19, 19, 185, 23, '#285777');
+    ctx.fillStyle = '#fff2ce'; ctx.font = 'bold 14px monospace';
+    ctx.fillText('^ LLEGA A LA CIMA', 27, 36);
   }
+  screen.drawImage(pixelCanvas, 0, 0, W, H);
 }
 
 function frame(timestamp) {
