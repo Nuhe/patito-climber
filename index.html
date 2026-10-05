@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#101936" />
+    <meta name="description" content="Patito Cumbre: un juego de saltos, hielo y estrellas." />
+    <title>Patito Cumbre</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <a class="brand" href="./" aria-label="Patito Cumbre, inicio"><span class="brand-icon">✦</span> PATITO <em>CUMBRE</em></a>
+        <button class="small-button" id="sound-button" type="button" aria-label="Activar o silenciar sonido">♫ Sonido: sí</button>
+      </header>
+
+      <section class="hero">
+        <div class="eyebrow"><span class="eyebrow-line"></span> UNA AVENTURA EN LAS ALTURAS <span class="eyebrow-line"></span></div>
+        <h1>Una montaña.<br /><span>Un patito valiente.</span></h1>
+        <p>Salta entre bloques de hielo, esquiva a los guardianes y junta estrellas hasta llegar a la cima.</p>
+      </section>
+
+      <div class="game-layout">
+        <section class="game-card" aria-label="Juego Patito Cumbre">
+          <div class="game-hud">
+            <div class="hud-item"><span class="hud-label">PUNTOS</span><strong id="score">000000</strong></div>
+            <div class="hud-item"><span class="hud-label">ALTURA</span><strong id="height">000 m</strong></div>
+            <div class="hud-item"><span class="hud-label">VIDAS</span><strong id="lives">♥ ♥ ♥</strong></div>
+          </div>
+          <div class="canvas-wrap">
+            <canvas id="game" width="900" height="600" aria-label="Campo de juego"></canvas>
+            <div class="overlay" id="overlay">
+              <div class="overlay-panel" id="overlay-panel"></div>
+            </div>
+          </div>
+          <div class="touch-controls" aria-label="Controles táctiles">
+            <div class="touch-move"><button data-control="left" aria-label="Mover a la izquierda">←</button><button data-control="right" aria-label="Mover a la derecha">→</button></div>
+            <div class="touch-action"><button data-control="attack" aria-label="Atacar">✦</button><button data-control="jump" aria-label="Saltar">↑</button></div>
+          </div>
+          <div class="game-footer"><span>❄ HECHO PARA DIVERTIRSE</span><span>VERSIÓN 1.0</span></div>
+        </section>
+
+        <aside class="sidebar">
+          <div class="side-card controls-card">
+            <div class="card-heading"><span class="mini-star">✦</span><h2>Cómo jugar</h2></div>
+            <div class="control-row"><span>Moverse</span><span class="keys"><kbd>←</kbd><kbd>→</kbd> <small>o</small> <kbd>A</kbd><kbd>D</kbd></span></div>
+            <div class="control-row"><span>Saltar</span><span class="keys"><kbd>ESPACIO</kbd> <small>o</small> <kbd>↑</kbd></span></div>
+            <div class="control-row"><span>Aletazo</span><span class="keys"><kbd>X</kbd> <small>o</small> <kbd>J</kbd></span></div>
+            <p class="tip">✦ El aletazo espanta guardianes cercanos. ¡Combínalo con tus saltos!</p>
+          </div>
+
+          <div class="side-card leaderboard-card">
+            <div class="card-heading"><span class="mini-star">★</span><h2>Mejores escaladores</h2></div>
+            <p class="board-subtitle" id="board-subtitle">Ranking mundial</p>
+            <ol class="leaderboard" id="leaderboard"><li class="board-empty">Cargando puntuaciones…</li></ol>
+            <p class="board-note" id="board-note"></p>
+          </div>
+        </aside>
+      </div>
+      <footer class="page-footer">Un pequeño juego original inspirado en los arcades de escalada. ♥</footer>
+    </main>
+    <script src="./config.js"></script>
+    <script type="module" src="./game.js"></script>
+  </body>
+</html>
